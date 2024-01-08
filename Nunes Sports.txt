@@ -1,0 +1,99 @@
+Certifique-se de ter o Flask instalado (pip install Flask).
+
+from flask import Flask, render_template, request, redirect, url_for
+import sqlite3
+
+app = Flask(__name__)
+
+# Configuração do banco de dados
+DATABASE = 'produtos.db'
+
+def create_table():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            codigo TEXT NOT NULL,
+            descricao TEXT,
+            preco REAL NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Função para obter todos os produtos do banco de dados
+def get_produtos():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM produtos')
+    produtos = cursor.fetchall()
+    conn.close()
+    return produtos
+
+# Rota principal para exibir a lista de produtos
+@app.route('/')
+def index():
+    produtos = get_produtos()
+    return render_template('index.html', produtos=produtos)
+
+# Rota para adicionar um novo produto
+@app.route('/add', methods=['POST'])
+def add():
+    nome = request.form['nome']
+    codigo = request.form['codigo']
+    descricao = request.form['descricao']
+    preco = request.form['preco']
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO produtos (nome, codigo, descricao, preco) VALUES (?, ?, ?, ?)',
+                   (nome, codigo, descricao, preco))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('index'))
+
+# Rota para excluir um produto
+@app.route('/delete/<int:produto_id>')
+def delete(produto_id):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM produtos WHERE id = ?', (produto_id,))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('index'))
+
+# Rota para editar um produto
+@app.route('/edit/<int:produto_id>')
+def edit(produto_id):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM produtos WHERE id = ?', (produto_id,))
+    produto = cursor.fetchone()
+    conn.close()
+
+    return render_template('edit.html', produto=produto)
+
+# Rota para salvar as alterações no produto editado
+@app.route('/update/<int:produto_id>', methods=['POST'])
+def update(produto_id):
+    nome = request.form['nome']
+    codigo = request.form['codigo']
+    descricao = request.form['descricao']
+    preco = request.form['preco']
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('UPDATE produtos SET nome=?, codigo=?, descricao=?, preco=? WHERE id=?',
+                   (nome, codigo, descricao, preco, produto_id))
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    create_table()
+    app.run(debug=True)
